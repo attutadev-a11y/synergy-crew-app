@@ -9,6 +9,14 @@ CI on every push — install it by sideloading.
 - Dark VOLTAGE launch (charcoal `#0A0A0D`, no white flash), pull-to-refresh,
   swipe back/forward, inline media; links that leave the team domains open
   in Safari.
+- **Capture protection.** The web view is hosted inside the secure canvas iOS
+  uses for password fields, so screenshots, screen recordings and mirroring
+  render team content black while it stays visible on device. A live recording
+  also raises a charcoal curtain ("Screen recording detected — 3134S content
+  hidden"), and taking a screenshot flashes one ("Screenshots are disabled for
+  team content"). The secure canvas is private API surface, so it is probed
+  defensively — if a future iOS reshapes it, the app hosts the web view
+  normally instead of showing a blank screen.
 
 ## Download
 
@@ -49,8 +57,9 @@ zip -r SynergyCrew.ipa Payload
 ## Layout
 
 - `project.yml` — XcodeGen spec (the `.xcodeproj` is generated, never committed)
-- `Sources/` — Swift app (AppDelegate + `CrewViewController` WKWebView shell),
-  launch storyboard, asset catalog with the volt-bolt AppIcon
+- `Sources/` — Swift app (AppDelegate + `CrewViewController` WKWebView shell,
+  `CaptureProtection.swift` secure canvas + capture curtain), launch storyboard,
+  asset catalog with the volt-bolt AppIcon
 - `tools/gen_icons.py` — regenerates the icon set (Pillow)
 - `.github/workflows/build-ipa.yml` — CI: build unsigned ipa, upload artifact,
   publish to the `latest` release
