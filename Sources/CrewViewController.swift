@@ -8,6 +8,13 @@ import WebKit
 ///     recordings render it black while it stays visible on device,
 ///  2. an on-screen curtain while a recording/mirroring session is live,
 ///  3. a brief curtain flash whenever a screenshot is taken.
+///
+/// (1) is best-effort on a private hierarchy. When it is unavailable the app
+/// hosts the web view normally *and the curtains change their wording*: they
+/// tell the user the content is visible in the capture rather than claiming a
+/// protection that is not there. See `CaptureProtectionDiagnostics` — and note
+/// that even the protected path needs a real-device screenshot to confirm the
+/// web view's out-of-process layer inherits the exclusion.
 final class CrewViewController: UIViewController {
 
     private static let dashboardURL = URL(string: "https://team-3134s.web.app/app.html?source=app")!
@@ -18,8 +25,15 @@ final class CrewViewController: UIViewController {
         "team-3134s.firebaseapp.com",
     ]
 
-    private static let recordingMessage = "Screen recording detected — 3134S content hidden"
-    private static let screenshotMessage = "Screenshots are disabled for team content"
+    // Curtain wording. The "protected" pair may only be shown while the web
+    // view really is inside the secure canvas; otherwise the app would be
+    // telling the user a screenshot is blank when it is not.
+    private static let recordingMessageProtected = "Screen recording detected — 3134S content hidden"
+    private static let recordingMessageExposed =
+        "Screen recording detected — team content IS visible in this recording"
+    private static let screenshotMessageProtected = "Screenshots are disabled for team content"
+    private static let screenshotMessageExposed =
+        "Screenshot taken — team content is visible in it"
 
     private var webView: WKWebView!
     private let refreshControl = UIRefreshControl()
@@ -27,7 +41,16 @@ final class CrewViewController: UIViewController {
     /// Secure (capture-excluded) host for the web view. Falls back to plain
     /// hosting if UIKit's private hierarchy ever stops looking familiar.
     private let secureHost = SecureContentHost()
-    private var isCaptureProtected = false
+
+    /// True only while the web view is parented inside a positively identified,
+    /// usable secure canvas. Everything the UI says about capture protection
+    /// keys off this — never off "we tried".
+    private(set) var isCaptureProtected = false {
+        didSet {
+            guard isCaptureProtected != oldValue else { return }
+            refreshNoticeMessage()
+        }
+    }
 
     private var noticeView: CaptureNoticeView?
     private var screenshotDismissWork: DispatchWorkItem?
@@ -75,7 +98,9 @@ final class CrewViewController: UIViewController {
         // secure canvas, then re-check once more a beat later.
         verifySecureHostOrFallBack()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-            self?.verifySecureHostOrFallBack()
+            guard let self = self else { return }
+            self.verifySecureHostOrFallBack()
+            self.reportCaptureDiagnostics()
         }
     }
 
@@ -105,6 +130,14 @@ final class CrewViewController: UIViewController {
             pinWebView(to: view, top: view.safeAreaLayoutGuide.topAnchor)
             isCaptureProtected = false
         }
+        reportCaptureDiagnostics()
+    }
+
+    /// Publishes where the content actually ended up (console + the static
+    /// booleans on `CaptureProtectionDiagnostics`) so a device screenshot test
+    /// has something to check itself against.
+    private func reportCaptureDiagnostics() {
+        CaptureProtectionDiagnostics.recordHosting(active: isCaptureProtected, content: webView)
     }
 
     private func pinWebView(to container: UIView, top: NSLayoutYAxisAnchor) {
@@ -129,15 +162,33 @@ final class CrewViewController: UIViewController {
         else { return }
 
         view.layoutIfNeeded()
+        // Give the host a chance to repair the canvas UIKit may have re-shrunk
+        // during that layout pass before judging it.
+        secureHost.enforceVisibility()
+        view.layoutIfNeeded()
 
-        let healthy = secureHost.isHealthy
-            && webView.window != nil
-            && !webView.isHidden
-            && webView.alpha > 0.01
-            && webView.bounds.width > 1
-            && webView.bounds.height > 1
-        guard !healthy else { return }
+        // The web view must be visible *and* be getting a real share of the
+        // screen: a canvas UIKit has collapsed to a text line technically has
+        // non-zero bounds, and hosting the dashboard in it would leave the crew
+        // staring at a ~20pt sliver.
+        // Width is full-bleed; height loses the status bar to the safe-area pin,
+        // so it gets the looser bar.
+        let minimumWidthCoverage: CGFloat = 0.9
+        let minimumHeightCoverage: CGFloat = 0.7
+        var reason: String?
+        if let hostReason = secureHost.unhealthyReason {
+            reason = hostReason
+        } else if webView.window == nil {
+            reason = "web view left the window"
+        } else if webView.isHidden || webView.alpha <= 0.01 {
+            reason = "web view is not visible"
+        } else if webView.bounds.width < view.bounds.width * minimumWidthCoverage
+                    || webView.bounds.height < view.bounds.height * minimumHeightCoverage {
+            reason = "web view \(webView.bounds.size) is far smaller than the screen \(view.bounds.size)"
+        }
+        guard let failure = reason else { return }
 
+        CaptureProtectionDiagnostics.recordFailure(failure)
         isCaptureProtected = false
         secureHost.uninstall(releasing: webView)
         view.addSubview(webView)
@@ -146,6 +197,9 @@ final class CrewViewController: UIViewController {
             view.bringSubviewToFront(notice)
         }
         view.setNeedsLayout()
+        // Whatever the curtain is currently saying, it is now wrong.
+        refreshNoticeMessage()
+        reportCaptureDiagnostics()
     }
 
     // MARK: - Loading
@@ -207,11 +261,24 @@ final class CrewViewController: UIViewController {
         verifySecureHostOrFallBack()
     }
 
+    /// The curtain never claims protection the app does not actually have.
+    private var recordingMessage: String {
+        isCaptureProtected ? Self.recordingMessageProtected : Self.recordingMessageExposed
+    }
+
+    private var screenshotMessage: String {
+        isCaptureProtected ? Self.screenshotMessageProtected : Self.screenshotMessageExposed
+    }
+
+    private var noticeTone: CaptureNoticeView.Tone {
+        isCaptureProtected ? .protected : .exposed
+    }
+
     private func syncCaptureState() {
         if isScreenCaptured {
             screenshotDismissWork?.cancel()
             screenshotDismissWork = nil
-            presentNotice(message: Self.recordingMessage)
+            presentNotice(message: recordingMessage)
         } else if screenshotDismissWork == nil {
             dismissNotice()
         }
@@ -221,7 +288,7 @@ final class CrewViewController: UIViewController {
         // A live recording already has the curtain up with its own message.
         guard !isScreenCaptured else { return }
 
-        presentNotice(message: Self.screenshotMessage)
+        presentNotice(message: screenshotMessage)
 
         screenshotDismissWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -240,13 +307,13 @@ final class CrewViewController: UIViewController {
     /// in the recording itself — the viewer sees the notice, not the content.
     private func presentNotice(message: String) {
         if let notice = noticeView {
-            notice.setMessage(message)
+            notice.apply(message: message, tone: noticeTone)
             view.bringSubviewToFront(notice)
             notice.alpha = 1
             return
         }
 
-        let notice = CaptureNoticeView(message: message)
+        let notice = CaptureNoticeView(message: message, tone: noticeTone)
         notice.alpha = 0
         view.addSubview(notice)
         NSLayoutConstraint.activate([
@@ -260,6 +327,17 @@ final class CrewViewController: UIViewController {
 
         UIView.animate(withDuration: 0.18) { notice.alpha = 1 }
         UIAccessibility.post(notification: .screenChanged, argument: notice)
+    }
+
+    /// Rewrites a curtain that is already up — used when protection is dropped
+    /// mid-session, so a live recording's notice stops promising a blank frame.
+    private func refreshNoticeMessage() {
+        guard let notice = noticeView else { return }
+        notice.apply(
+            message: isScreenCaptured ? recordingMessage : screenshotMessage,
+            tone: noticeTone
+        )
+        UIAccessibility.post(notification: .announcement, argument: notice.accessibilityLabel)
     }
 
     private func dismissNotice() {
@@ -310,8 +388,11 @@ extension CrewViewController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         refreshControl.endRefreshing()
-        // A finished load is a good moment to confirm the canvas still holds us.
+        // A finished load is a good moment to confirm the canvas still holds us
+        // — and the first moment the web view's remote layer tree exists, which
+        // is what the diagnostic wants to look at.
         verifySecureHostOrFallBack()
+        reportCaptureDiagnostics()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
