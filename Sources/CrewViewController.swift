@@ -25,14 +25,16 @@ final class CrewViewController: UIViewController {
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
 
-        webView = WKWebView(frame: view.bounds, configuration: configuration)
-        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.translatesAutoresizingMaskIntoConstraints = false
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         webView.isOpaque = false
         webView.backgroundColor = .voltageCharcoal
         webView.scrollView.backgroundColor = .voltageCharcoal
+        // The webview's top is pinned below the status bar, so no automatic
+        // safe-area content insets are wanted inside the scroll view itself.
         webView.scrollView.contentInsetAdjustmentBehavior = .never
 
         refreshControl.tintColor = UIColor(red: 1.0, green: 212.0 / 255.0, blue: 0.0, alpha: 1.0)
@@ -40,6 +42,17 @@ final class CrewViewController: UIViewController {
         webView.scrollView.refreshControl = refreshControl
 
         view.addSubview(webView)
+
+        // Top hugs the safe area so content never under-laps the status bar;
+        // the view's charcoal background fills the strip behind clock/battery.
+        // Leading/trailing/bottom stay full-bleed for the edge-to-edge look.
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+
         loadDashboard()
     }
 
