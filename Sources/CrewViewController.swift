@@ -4,7 +4,7 @@ import WebKit
 /// Full-screen wrapper around the 3134S crew dashboard.
 final class CrewViewController: UIViewController {
 
-    private static let dashboardURL = URL(string: "https://team-3134s.web.app/crew.html?source=app")!
+    private static let dashboardURL = URL(string: "https://team-3134s.web.app/app.html?source=app")!
 
     /// Hosts that stay inside the app; everything else opens in Safari.
     private static let teamHosts: Set<String> = [

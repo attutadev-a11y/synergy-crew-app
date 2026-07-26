@@ -1,8 +1,8 @@
 # Synergy Crew — unofficial iPhone app
 
-Full-screen iOS wrapper around the 3134S crew dashboard
-(`https://team-3134s.web.app/crew.html`). Unsigned `.ipa`, built by CI on
-every push — install it by sideloading.
+Full-screen iOS wrapper around the 3134S Synergy OS app shell
+(`https://team-3134s.web.app/app.html?source=app`). Unsigned `.ipa`, built by
+CI on every push — install it by sideloading.
 
 - Bundle id: `com.synergy3134s.crew`
 - Deployment target: iOS 15
@@ -12,8 +12,8 @@ every push — install it by sideloading.
 
 ## Download
 
-Latest build: **[SynergyCrew.ipa](https://github.com/Lamadragon327879/synergy-crew-app/releases/latest/download/SynergyCrew.ipa)**
-(from the [`latest` release](https://github.com/Lamadragon327879/synergy-crew-app/releases/latest)).
+Latest build: **[SynergyCrew.ipa](https://github.com/attutadev-a11y/synergy-crew-app/releases/latest/download/SynergyCrew.ipa)**
+(from the [`latest` release](https://github.com/attutadev-a11y/synergy-crew-app/releases/latest)).
 
 ## Install with AltStore
 
