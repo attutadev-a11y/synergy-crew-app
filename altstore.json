@@ -1,0 +1,38 @@
+{
+  "name": "3134S Synergy",
+  "identifier": "com.synergy3134s.source",
+  "subtitle": "Team 3134S crew apps",
+  "description": "Private app source for VEX team 3134S (Synergy). Members only.",
+  "iconURL": "https://raw.githubusercontent.com/attutadev-a11y/synergy-crew-app/main/icon-512.png",
+  "website": "https://team-3134s.web.app",
+  "tintColor": "FFD400",
+  "apps": [
+    {
+      "name": "Synergy Crew",
+      "bundleIdentifier": "com.synergy3134s.crew",
+      "developerName": "Team 3134S",
+      "subtitle": "The 3134S crew dashboard",
+      "localizedDescription": "Synergy OS — the team dashboard for VEX 3134S. Tasks, chats, schedule, live event data and the crew board. Screen-capture protected.",
+      "iconURL": "https://raw.githubusercontent.com/attutadev-a11y/synergy-crew-app/main/icon-512.png",
+      "tintColor": "FFD400",
+      "category": "other",
+      "screenshotURLs": [],
+      "versions": [
+        {
+          "version": "1.0.1",
+          "date": "2026-07-26T19:00:00Z",
+          "downloadURL": "https://github.com/attutadev-a11y/synergy-crew-app/releases/download/latest/SynergyCrew.ipa",
+          "size": 122932,
+          "localizedDescription": "Capture protection (screenshots and recordings render black), safe-area fix, Synergy OS app UI."
+        }
+      ],
+      "version": "1.0.1",
+      "versionDate": "2026-07-26T19:00:00Z",
+      "versionDescription": "Capture protection, safe-area fix, Synergy OS app UI.",
+      "downloadURL": "https://github.com/attutadev-a11y/synergy-crew-app/releases/download/latest/SynergyCrew.ipa",
+      "size": 122932,
+      "permissions": []
+    }
+  ],
+  "news": []
+}
